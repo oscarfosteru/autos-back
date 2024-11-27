@@ -1,0 +1,32 @@
+# Fase de construcción
+FROM maven:3.8.5-openjdk-17 AS build
+
+# Establecer el directorio de trabajo en /app
+WORKDIR /app
+
+# Copiar solo el archivo pom.xml para obtener las dependencias primero
+COPY pom.xml .
+
+# Descargar las dependencias sin compilar el proyecto
+RUN mvn dependency:go-offline -B
+
+# Copiar el resto de los archivos del proyecto
+COPY . .
+
+# Construir el proyecto, omitiendo los tests para acelerar la construcción
+RUN mvn clean package -DskipTests
+
+# Fase final de la imagen
+FROM openjdk:17-jdk-slim
+
+# Establecer el directorio de trabajo
+WORKDIR /app
+
+# Copiar el artefacto .jar desde la fase de construcción
+COPY --from=build /app/target/*.jar app.jar
+
+# Exponer el puerto donde la aplicación escuchará
+EXPOSE 8080
+
+# Configurar el comando de ejecución
+ENTRYPOINT ["java", "-jar", "app.jar"]
